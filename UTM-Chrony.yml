@@ -130,6 +130,9 @@ storage:
     - path: /etc/fstab
       contents:
         source: https://raw.githubusercontent.com/spider-one/Fedora-CoreOS-Ignition/main/etc/fstab
+    - path: /etc/firewalld/services/unifi-sdn.xml
+      contents:
+        source: https://raw.githubusercontent.com/spider-one/uCore_ignition/main/etc/firewalld/services/unifi-sdn.xml
     # Enable lingering for tylor
     - path: /var/lib/systemd/linger/tylor
       mode: 0755
