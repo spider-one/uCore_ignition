@@ -108,7 +108,15 @@ storage:
       contents:
         inline: |
           [updates]
-          strategy = "immediate"
+          strategy = "periodic"
+          
+          [updates.periodic]
+          time_zone = "localtime"
+          
+          [[updates.periodic.window]]
+          days = [ "Fri" ]
+          start_time = "05:30"
+          length_minutes = 60
     - path: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:secureblue:hardened_malloc.repo
       contents:
         source: https://raw.githubusercontent.com/TommyTran732/Fedora-CoreOS-Ignition/main/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:secureblue:hardened_malloc.repo
