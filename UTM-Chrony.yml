@@ -24,6 +24,42 @@ passwd:
         - sudo
 systemd:
   units:
+    - name: ucore-unsigned-autorebase.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=uCore autorebase to unsigned OCI and reboot
+        ConditionPathExists=!/etc/ucore-autorebase/unverified
+        ConditionPathExists=!/etc/ucore-autorebase/signed
+        After=network-online.target
+        Wants=network-online.target
+        [Service]
+        Type=oneshot
+        StandardOutput=journal+console
+        ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver ostree-unverified-registry:ghcr.io/ublue-os/ucore:stable
+        ExecStart=/usr/bin/touch /etc/ucore-autorebase/unverified
+        ExecStart=/usr/bin/systemctl disable ucore-unsigned-autorebase.service
+        ExecStart=/usr/bin/systemctl reboot
+        [Install]
+        WantedBy=multi-user.target
+    - name: ucore-signed-autorebase.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=uCore autorebase to signed OCI and reboot
+        ConditionPathExists=/etc/ucore-autorebase/unverified
+        ConditionPathExists=!/etc/ucore-autorebase/verified
+        After=network-online.target
+        Wants=network-online.target
+        [Service]
+        Type=oneshot
+        StandardOutput=journal+console
+        ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver ostree-image-signed:docker://ghcr.io/ublue-os/ucore:stable
+        ExecStart=/usr/bin/touch /etc/ucore-autorebase/signed
+        ExecStart=/usr/bin/systemctl disable ucore-signed-autorebase.service
+        ExecStart=/usr/bin/systemctl reboot
+        [Install]
+        WantedBy=multi-user.target
     - name: postinst.service
       enabled: true
       contents: |
@@ -41,18 +77,9 @@ systemd:
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        ExecStart=/usr/sbin/restorecon -R /var
-        ExecStart=/usr/sbin/setsebool -P container_use_cephfs off
-        ExecStart=/usr/sbin/setsebool -P virt_use_nfs off
-        ExecStart=/usr/sbin/setsebool -P virt_use_samba off
-        ExecStart=/usr/bin/rpm-ostree install firewalld qemu-guest-agent tuned
-        ExecStart=/usr/bin/rpm-ostree override brcmfmac-firmware intel-gpu-firmware mt7xxx-firmware atheros-firmware amd-ucode-firmware linux-firmware amd-gpu-firmware realtek-firmware btrfs-progs cifs-utils clevis clevis-dracut clevis-luks clevis-pin-tpm2 clevis-systemd containerd containers-common-extra crun crun-wasm cryptsetup dnsmasq e2fsprogs-libs e2fsprogs flatpak-session-helper fuse-overlayfs fuse-sshfs fuse3 fwupd google-compute-engine-guest-configs-udev iptables-legacy iptables-legacy-libs kexec-tools libnvme lvm2 lvm2-libs mdadm moby-engine nvme-cli podman rsync runc samba-client-libs samba-common libwbclient libsmbclient samba-common-libs socat sssd-client sssd-ldap sssd-common sssd-krb5-common sssd-nfs-idmap sssd-ad sssd-krb5 sssd-ipa sssd-common-pac toolbox tpm2-tools tpm2-tss-fapi vim-data vim-minimal wireguard-tools
-        ExecStart=/usr/bin/sed -i 's/\s+nullok//g' /etc/pam.d/system-auth
-        ExecStart=/usr/bin/sed -i '$ a\allow 10.0.2.2/32' /etc/chrony.conf
         ExecStart=/usr/bin/echo 'EDITOR=nano' >> /etc/bashrc
         ExecStart=/usr/bin/echo 'VISUAL=nano' >> /etc/bashrc
         ExecStart=/usr/bin/touch /var/lib/%N.stamp
-        ExecStart=/usr/bin/systemctl --no-block reboot
 
         [Install]
         WantedBy=multi-user.target
@@ -60,7 +87,7 @@ systemd:
       enabled: true
       contents: |
         [Unit]
-        Description=Initial System Setup Part 3
+        Description=Initial System Setup Part 2
         # We run this after the packages have been overlayed
         After=firewalld.service
         ConditionPathExists=!/var/lib/%N.stamp
@@ -69,108 +96,26 @@ systemd:
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        ExecStart=/usr/bin/echo 'libhardened_malloc.so' > /etc/ld.so.preload
         ExecStart=/usr/bin/systemctl enable --now firewalld
         ExecStart=/usr/bin/firewall-cmd --lockdown-on
-        ExecStart=/usr/bin/firewall-cmd --permanent --add-service=ntp
+        ExecStart=/usr/bin/firewall-cmd --permanent --add-service={samba,http,https}
+        ExecStart=/usr/bin/firewall-cmd --permanent --add-port={25565-25574/tcp,32400/tcp}
         ExecStart=/usr/bin/firewall-cmd --reload
 
         [Install]
         WantedBy=multi-user.target
     - name: docker.service
       enabled: false
-    - name: fstrim.timer
+    - name: samba.service
       enabled: true
-    - name: systemd-oomd.service
-      enabled: true
-    - name: rpm-ostree-countme.timer
-      enabled: false
-      mask: true
-    - name: sshd.service
-      enabled: false
-    - name: sshd.socket
-      enabled: true
-    - name: kdump.service
-      enabled: false
-      mask: true
-    - name: debug-shell.service
-      enabled: false
-      mask: true
-    - name: coreos-cni-networking-check.service
-      enabled: false
-      mask: true
 storage:
+  directories:
+    - path: /etc/ucore-autorebase
+      mode: 0754
   files:
     - path: /etc/zincati/config.d/51-rollout-wariness.toml
       contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Fedora-CoreOS-Ignition/main/etc/zincati/config.d/51-rollout-wariness.toml
+        source: https://raw.githubusercontent.com/spider-one/Fedora-CoreOS-Ignition/main/etc/zincati/config.d/51-rollout-wariness.toml
     - path: /etc/zincati/config.d/55-updates-strategy.toml
       contents:
-        inline: |
-          [updates]
-          strategy = "periodic"
-          
-          [updates.periodic]
-          time_zone = "localtime"
-          
-          [[updates.periodic.window]]
-          days = [ "Fri" ]
-          start_time = "05:30"
-          length_minutes = 60
-    - path: /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:secureblue:hardened_malloc.repo
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Fedora-CoreOS-Ignition/main/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:secureblue:hardened_malloc.repo
-    - path: /etc/chrony.conf
-      contents:
-        source: https://raw.githubusercontent.com/GrapheneOS/infrastructure/main/chrony.conf
-      overwrite: true
-    - path: /etc/modprobe.d/vps-blacklist.conf
-      contents:
-        source: https://raw.githubusercontent.com/secureblue/secureblue/live/config/files/usr/etc/modprobe.d/blacklist.conf
-    - path: /etc/sysctl.d/99-server.conf
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/sysctl.d/99-server.conf
-    - path: /etc/systemd/system/NetworkManager.service.d/99-brace.conf
-      contents:
-        source: https://gitlab.com/divested/brace/-/raw/master/brace/usr/lib/systemd/system/NetworkManager.service.d/99-brace.conf
-    - path: /etc/systemd/system/irqbalance.service.d/99-brace.conf
-      contents:
-        source: https://gitlab.com/divested/brace/-/raw/master/brace/usr/lib/systemd/system/irqbalance.service.d/99-brace.conf
-    - path: /etc/ssh/sshd_config.d/10-custom.conf
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/ssh/sshd_config.d/10-custom.conf
-    - path: /etc/ssh/ssh_config.d/10-custom.conf
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/ssh/ssh_config.d/10-custom.conf
-    - path: /etc/systemd/system/sshd.service.d/local.conf
-      contents:
-        source: https://raw.githubusercontent.com/GrapheneOS/infrastructure/main/systemd/system/sshd.service.d/local.conf
-    - path: /etc/tuned/active_profile
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Fedora-CoreOS-Ignition/main/etc/tuned/active_profile
-    - path: /etc/tuned/profile_mode
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Fedora-CoreOS-Ignition/main/etc/tuned/profile_mode
-    - path: /etc/systemd/zram-generator.conf
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/systemd/zram-generator.conf
-    - path: /etc/security/limits.d/30-disable-coredump.conf
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/security/limits.d/30-disable-coredump.conf
-    - path: /etc/sysconfig/chronyd
-      overwrite: true
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/sysconfig/chronyd
-    - path: /etc/issue
-      overwrite: true
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/issue
-    - path: /etc/issue.net
-      overwrite: true
-      contents:
-        source: https://raw.githubusercontent.com/TommyTran732/Linux-Setup-Scripts/main/etc/issue
-  links:
-    - path: /etc/localtime
-      target: ../usr/share/zoneinfo/Etc/UTC
-    - path: /etc/systemd/system/multi-user.target.wants/tuned.service
-      target: /usr/lib/systemd/system/tuned.service
+        source: https://raw.githubusercontent.com/spider-one/Fedora-CoreOS-Ignition/main/etc/zincati/config.d/55-updates-strategy.toml
