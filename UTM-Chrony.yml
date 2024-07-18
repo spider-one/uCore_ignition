@@ -102,7 +102,6 @@ systemd:
         [Service]
         Type=oneshot
         RemainAfterExit=yes
-        ExecStart=/usr/bin/systemctl enable --now firewalld
         ExecStart=/usr/bin/firewall-cmd --lockdown-on
         ExecStart=/usr/bin/firewall-cmd --permanent --add-service={samba,http,https}
         ExecStart=/usr/bin/firewall-cmd --permanent --add-port={25565-25574/tcp,32400/tcp}
@@ -120,6 +119,8 @@ storage:
   directories:
     - path: /etc/ucore-autorebase
       mode: 0754
+    - path: /etc/firewalld/services
+      mode: 0750
   files:
     - path: /etc/zincati/config.d/51-rollout-wariness.toml
       contents:
