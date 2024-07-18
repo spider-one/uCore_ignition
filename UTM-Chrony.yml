@@ -16,12 +16,18 @@ variant: fcos
 version: 1.5.0
 passwd:
   users:
+    # Alternatively use the core username if UID switch and core user deletion causes problems
+    - name: core
+      should_exist: false
     - name: tylor
       ssh_authorized_keys:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFtLWWzTPW99+YOmSF7p4Nt6odElCtEusYnsqNUasEHi
       groups:
         - wheel
         - sudo
+  groups:
+    - name: core
+      should_exist: false
 systemd:
   units:
     - name: ucore-unsigned-autorebase.service
@@ -101,12 +107,16 @@ systemd:
         ExecStart=/usr/bin/firewall-cmd --permanent --add-service={samba,http,https}
         ExecStart=/usr/bin/firewall-cmd --permanent --add-port={25565-25574/tcp,32400/tcp}
         ExecStart=/usr/bin/firewall-cmd --reload
+        ExecStart=/usr/sbin/setsebool -P samba_enable_home_dirs=1
+        ExecStart=/usr/sbin/echo 'net.ipv4.ip_unprivileged_port_start=80' >> /etc/sysctl.conf
+        # Adjust username below if using the core user
+        ExecStart=/usr/sbin/loginctl enable-linger tylor
 
         [Install]
         WantedBy=multi-user.target
     - name: docker.service
       enabled: false
-    - name: samba.service
+    - name: smb.service
       enabled: true
 storage:
   directories:
@@ -119,3 +129,6 @@ storage:
     - path: /etc/zincati/config.d/55-updates-strategy.toml
       contents:
         source: https://raw.githubusercontent.com/spider-one/Fedora-CoreOS-Ignition/main/etc/zincati/config.d/55-updates-strategy.toml
+    - path: /etc/fstab
+      contents:
+        source: https://raw.githubusercontent.com/spider-one/Fedora-CoreOS-Ignition/main/etc/fstab
