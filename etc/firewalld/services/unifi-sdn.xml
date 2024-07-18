@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Refer to: https://help.ubnt.com/hc/en-us/articles/218506997-UniFi-Ports-Used -->
+
+<service version="1.0">
+  <short>unifi-sdn</short>
+  <description>UniFi Controller</description>
+  <port port="3478" protocol="udp"/><!-- STUN -->
+  <port port="8080" protocol="tcp"/><!-- Device and Controller Communication -->
+  <port port="8443" protocol="tcp"/><!-- WebUI -->
+  <port port="8880" protocol="tcp"/><!-- HTTP Portal Redirection -->
+  <port port="8843" protocol="tcp"/><!-- HTTPS Portal Redirection -->
+  <port port="6789" protocol="tcp"/><!-- UniFi Mobile App Speed Test -->
+  <port port="10001" protocol="udp"/><!-- Device Discovery -->
+  <port port="1900" protocol="udp"/><!-- Layer-2 Device Discovery -->
+</service>
