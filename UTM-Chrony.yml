@@ -95,7 +95,7 @@ systemd:
         [Unit]
         Description=Initial System Setup Part 2
         # We run this after the packages have been overlayed
-        After=firewalld.service
+        After=network-online.target firewalld.service
         ConditionPathExists=!/var/lib/%N.stamp
         ConditionPathExists=/var/lib/postinst.stamp
 
@@ -109,7 +109,6 @@ systemd:
         ExecStart=/usr/bin/firewall-cmd --reload
         ExecStart=/usr/sbin/setsebool -P samba_enable_home_dirs=1
         ExecStart=/usr/sbin/echo 'net.ipv4.ip_unprivileged_port_start=80' >> /etc/sysctl.conf
-        # Adjust username below if using the core user
 
         [Install]
         WantedBy=multi-user.target
