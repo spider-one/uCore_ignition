@@ -85,7 +85,7 @@ systemd:
         RemainAfterExit=yes
         ExecStart=/usr/bin/echo 'EDITOR=nano' >> /etc/bashrc
         ExecStart=/usr/bin/echo 'VISUAL=nano' >> /etc/bashrc
-        ExecStart=/usr/bin/touch /var/lib/%N.stamp
+        ExecStartPost=/usr/bin/touch /var/lib/%N.stamp
 
         [Install]
         WantedBy=multi-user.target
@@ -98,6 +98,7 @@ systemd:
         After=network-online.target firewalld.service
         ConditionPathExists=!/var/lib/%N.stamp
         ConditionPathExists=/var/lib/postinst.stamp
+        ConditionFileIsExecutable=/usr/bin/firewall-cmd
 
         [Service]
         Type=oneshot
@@ -106,8 +107,12 @@ systemd:
         ExecStart=/usr/bin/firewall-cmd --permanent --add-service={samba,http,https}
         ExecStart=/usr/bin/firewall-cmd --permanent --add-port={25565-25574/tcp,32400/tcp}
         ExecStart=/usr/bin/firewall-cmd --reload
+        # SELinux samba
         ExecStart=/usr/sbin/setsebool -P samba_enable_home_dirs=1
+        # Allow for lower ports for rootless
         ExecStart=/usr/sbin/echo 'net.ipv4.ip_unprivileged_port_start=80' >> /etc/sysctl.conf
+        # Stamp for completion
+        ExecStartPost=/usr/bin/touch /var/lib/%N.stamp
 
         [Install]
         WantedBy=multi-user.target
