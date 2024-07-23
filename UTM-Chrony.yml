@@ -141,7 +141,7 @@ storage:
         source: https://raw.githubusercontent.com/spider-one/uCore_ignition/main/etc/firewalld/services/unifi-sdn.xml
     # Enable lingering for tylor
     - path: /var/lib/systemd/linger/tylor
-      mode: 0755
+      mode: 0644
   links:
     - path: /etc/localtime
       target: ../usr/share/zoneinfo/America/Yellowknife
